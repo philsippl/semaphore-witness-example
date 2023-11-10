@@ -1,0 +1,19 @@
+[package]
+name = "wtest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+witness = {path = "../witness"}
+ruint = { version = "1.10.0", features = ["rand", "serde", "ark-ff-04"] }
+serde = "1.0.136"
+serde_json = "1.0.91"
+
+[build-dependencies]
+witness = {path = "../witness", features = ["build-witness"]}
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = true
