@@ -1114,7 +1114,8 @@ dependencies = [
 
 [[package]]
 name = "witness"
-version = "0.1.0"
+version = "0.2.0"
+source = "git+https://github.com/philsippl/circom-witness-rs.git?branch=separate-witgen#efc43ca9b8c733e4aa192cd817a63ad598bb7786"
 dependencies = [
  "ark-bn254",
  "ark-ff 0.4.2",
