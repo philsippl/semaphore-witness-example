@@ -1,5 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use ruint::{aliases::U256, uint};
 
 const BYTES: &[u8] = include_bytes!("../graph.bin");
@@ -92,11 +93,30 @@ fn main() {
           ]
         }
     "#;
+
+    let variable_names = vec![
+        "prog_a_rw",
+        "prog_v_rw",
+        "memreg_a_rw",
+        "memreg_v_reads",
+        "memreg_v_writes",
+        "chunks_x",
+        "chunks_y",
+        "chunks_query",
+        "lookup_output",
+        "op_flags",
+        "input_state",
+    ]
+    .iter()
+    .map(|&name| name.to_string())
+    .collect::<Vec<_>>();
+
     let inputs: HashMap<String, Vec<U256>> = serde_json::from_str(data).unwrap();
     let graph = witness::init_graph(&BYTES).unwrap();
 
-    let mut inputs_buffer = witness::generate_inputs_buffer(&graph);
-    let input_mapping = witness::get_input_mapping(inputs.clone(), &graph);
+    let buffer_size = witness::get_inputs_size(&graph);
+    let mut inputs_buffer = witness::get_inputs_buffer(buffer_size);
+    let input_mapping = witness::get_input_mapping(&variable_names, &graph);
 
     let now = Instant::now();
     for _ in 0..10000 {
@@ -105,10 +125,20 @@ fn main() {
     }
     eprintln!("Calculation took: {:?}", now.elapsed() / 10000);
 
-    let witness = witness::calculate_witness(inputs, &graph).unwrap();
+    let witness = witness::calculate_witness(inputs.clone(), &graph).unwrap();
     println!("Witness length: {}", witness.len());
     assert_eq!(witness[0], uint!(1_U256));
     assert_eq!(witness[1], uint!(0xb1_U256));
     assert_eq!(witness[2], uint!(0x80000064_U256));
     assert_eq!(witness[3], uint!(0xb0_U256));
+
+    // parallel example
+    vec![inputs.clone(); 10]
+        .par_iter()
+        .map(|input| {
+            let mut inputs_buffer = witness::get_inputs_buffer(buffer_size);
+            witness::populate_inputs(&inputs, &input_mapping, &mut inputs_buffer);
+            witness::graph::evaluate(&graph.nodes, &inputs_buffer, &graph.signals)
+        })
+        .collect::<Vec<_>>();
 }
